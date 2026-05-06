@@ -1,0 +1,65 @@
+name: Kitty Daily Score
+
+on:
+  schedule:
+    # 21:30 UTC every weekday. That is 5:30 PM ET in EDT and 4:30 PM ET in EST.
+    # GitHub Actions cron runs in UTC and does not auto-adjust for DST.
+    - cron: '30 21 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      always_push:
+        description: 'Send push regardless of score'
+        type: boolean
+        default: true
+      alert_threshold:
+        description: 'Override alert threshold (default 51)'
+        type: string
+        default: '51'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: kitty
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Kitty
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          ARGS="--alert-threshold ${{ inputs.alert_threshold || '51' }}"
+          # Cron sets inputs.always_push to empty; default to always push.
+          if [ "${{ inputs.always_push }}" != "false" ]; then
+            ARGS="$ARGS --always-push"
+          fi
+          python kitty.py $ARGS
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.json history.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "kitty: $(date -u +%Y-%m-%d) score update"
+            git push
+          fi
