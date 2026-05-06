@@ -1,0 +1,16 @@
+{
+  "gill_active_7d": false,
+  "gill_last_seen": null,
+  "cohen_post_7d": false,
+  "cohen_last_seen": null,
+  "macro_event": false,
+  "macro_event_note": "",
+  "cash_tier": "over50",
+  "ocf_positive": true,
+  "no_dilution_risk": true,
+  "drs_locked": true,
+  "borrow_fee_rising": false,
+  "short_vol_pct": 45,
+  "fundamentals_last_updated": "2026-05-06",
+  "notes": ""
+}

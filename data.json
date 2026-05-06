@@ -1,0 +1,6 @@
+{
+  "date": null,
+  "score": null,
+  "state": "Awaiting first run",
+  "message": "Trigger the GitHub Actions workflow once to generate the first score."
+}
