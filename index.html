@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c0a09" />
+  <meta name="color-scheme" content="dark" />
+  <title>Kitty · GME Daily Conditions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --stone-950: #0c0a09;
+      --stone-900: #1c1917;
+      --stone-850: #211e1c;
+      --stone-800: #292524;
+      --stone-700: #44403c;
+      --stone-600: #57534e;
+      --stone-500: #78716c;
+      --stone-400: #a8a29e;
+      --stone-300: #d6d3d1;
+      --stone-200: #e7e5e4;
+      --stone-100: #f5f5f4;
+      --amber-400: #fbbf24;
+      --amber-300: #fcd34d;
+      --amber-200: #fde68a;
+      --rose-400: #fb7185;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--stone-950);
+      color: var(--stone-100);
+      font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+    }
+    .display { font-family: 'Fraunces', Georgia, serif; font-style: italic; font-variation-settings: 'opsz' 144; }
+    .tabular { font-variant-numeric: tabular-nums; }
+    .uppercase { text-transform: uppercase; letter-spacing: 0.18em; }
+    .micro { font-size: 10px; }
+    .small { font-size: 11px; }
+
+    a { color: var(--amber-300); text-decoration: none; }
+    a:hover { color: var(--amber-200); }
+
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    header {
+      border-bottom: 1px solid var(--stone-800);
+      padding: 18px 16px 16px;
+    }
+    .row { display: flex; }
+    .between { justify-content: space-between; }
+    .baseline { align-items: baseline; }
+    .center { align-items: center; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+
+    .wordmark {
+      font-family: 'Fraunces', Georgia, serif;
+      font-style: italic;
+      font-size: 30px;
+      color: var(--amber-400);
+      line-height: 1;
+    }
+    .stamp { color: var(--stone-500); }
+
+    .card {
+      border: 1px solid var(--stone-800);
+      background: rgba(28, 25, 23, 0.4);
+      padding: 18px;
+      margin: 14px 0;
+    }
+    .card.accent {
+      border-color: rgba(251, 191, 36, 0.3);
+      background: rgba(251, 191, 36, 0.02);
+    }
+
+    .label {
+      color: var(--stone-500);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+
+    .score {
+      font-family: 'Fraunces', Georgia, serif;
+      font-style: italic;
+      font-size: 78px;
+      color: var(--stone-100);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .of100 { color: var(--stone-600); font-family: 'JetBrains Mono', monospace; font-style: normal; font-size: 14px; margin-left: 6px; }
+
+    .bar {
+      height: 5px;
+      background: var(--stone-900);
+      position: relative;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      background: var(--amber-400);
+      transition: width 400ms ease;
+    }
+
+    .layer-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 10px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .layer-row .label { font-size: 10px; }
+    .layer-row .val { font-size: 10px; color: var(--stone-300); }
+    .layer-row .val .max { color: var(--stone-600); }
+    .layer-row .mini-bar {
+      grid-column: 1 / span 2;
+      height: 2px;
+      background: var(--stone-900);
+      position: relative;
+      overflow: hidden;
+    }
+    .layer-row .mini-bar > span {
+      display: block;
+      height: 100%;
+      background: var(--amber-400);
+    }
+
+    ul.read { list-style: none; padding: 0; margin: 0; }
+    ul.read li { padding: 4px 0; color: var(--stone-300); font-size: 12px; }
+    ul.read li::before { content: "·"; color: var(--amber-400); margin-right: 8px; }
+
+    ul.changes { list-style: none; padding: 0; margin: 0; }
+    ul.changes li { padding: 3px 0; color: var(--stone-400); font-size: 12px; }
+    ul.changes li::before { content: "→"; color: var(--stone-600); margin-right: 8px; }
+
+    .flags {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      align-items: center;
+    }
+    .flags .key { color: var(--stone-400); font-size: 11px; }
+    .flags .v-true { color: var(--amber-300); font-size: 11px; }
+    .flags .v-false { color: var(--stone-600); font-size: 11px; }
+    .flags .v-num { color: var(--stone-300); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+    details { margin: 14px 0; border: 1px solid var(--stone-800); }
+    details > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
+      color: var(--stone-400);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      user-select: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] > summary { color: var(--amber-300); border-bottom: 1px solid var(--stone-800); }
+    details > .body { padding: 14px; }
+
+    .sparkline { width: 100%; height: 110px; display: block; }
+
+    footer {
+      color: var(--stone-600);
+      font-size: 10px;
+      line-height: 1.7;
+      padding: 22px 16px 36px;
+      border-top: 1px solid var(--stone-800);
+      margin-top: 22px;
+    }
+
+    .err {
+      color: var(--rose-400);
+      font-size: 11px;
+    }
+
+    .state-quiet { color: var(--stone-500); }
+    .state-watching { color: var(--stone-300); }
+    .state-elevated { color: var(--amber-200); }
+    .state-heightened { color: var(--amber-300); }
+    .state-convergence { color: var(--amber-400); }
+
+    .bar-quiet > span { background: var(--stone-600); }
+    .bar-watching > span { background: var(--stone-400); }
+    .bar-elevated > span { background: var(--amber-200); }
+    .bar-heightened > span { background: var(--amber-300); }
+    .bar-convergence > span { background: var(--amber-400); }
+
+    @media (max-width: 480px) {
+      .score { font-size: 64px; }
+      .wrap { padding: 10px; }
+      .card { padding: 14px; margin: 10px 0; }
+      header { padding: 16px 10px 14px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap" style="padding: 0;">
+      <div class="row between baseline">
+        <div class="row baseline gap-2">
+          <span class="wordmark">Kitty</span>
+          <span class="micro uppercase stamp">v1.0</span>
+        </div>
+        <div class="micro stamp tabular" id="today-date"></div>
+      </div>
+      <div class="micro stamp uppercase" style="margin-top: 4px;">GME Daily Conditions Monitor</div>
+    </div>
+  </header>
+
+  <main class="wrap" id="main">
+    <div id="loading" class="card"><div class="label">Loading…</div></div>
+  </main>
+
+  <footer>
+    Not financial advice. The Kitty Score reports condition similarity to historical pre-spike setups, not predictions. Past patterns do not have to recur. Calibrated against a small sample of two known pre-spike events. False positives are possible. Built for personal analytical use.
+  </footer>
+
+  <script>
+    const LAYERS = [
+      ['Floor', 'l1', 20],
+      ['Technical', 'l2', 20],
+      ['Options Tape', 'l3', 25],
+      ['Structural', 'l4', 15],
+      ['Catalyst', 'l5', 20],
+    ];
+
+    function stateClass(score) {
+      if (score == null) return 'quiet';
+      if (score >= 86) return 'convergence';
+      if (score >= 71) return 'heightened';
+      if (score >= 51) return 'elevated';
+      if (score >= 31) return 'watching';
+      return 'quiet';
+    }
+
+    function stateLabel(score) {
+      if (score == null) return 'No data';
+      if (score >= 86) return 'Significant Convergence';
+      if (score >= 71) return 'Heightened';
+      if (score >= 51) return 'Elevated';
+      if (score >= 31) return 'Watching';
+      return 'Quiet';
+    }
+
+    function fmt(v, digits) {
+      if (v == null || Number.isNaN(v)) return '—';
+      return Number(v).toFixed(digits ?? 2);
+    }
+
+    function fmtInt(v) {
+      if (v == null || Number.isNaN(v)) return '—';
+      return Math.round(v).toLocaleString();
+    }
+
+    function el(tag, attrs, ...children) {
+      const e = document.createElement(tag);
+      if (attrs) {
+        for (const [k, v] of Object.entries(attrs)) {
+          if (k === 'class') e.className = v;
+          else if (k === 'html') e.innerHTML = v;
+          else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+          else e.setAttribute(k, v);
+        }
+      }
+      for (const c of children) {
+        if (c == null || c === false) continue;
+        e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      }
+      return e;
+    }
+
+    function sparkline(history) {
+      const recent = history.slice(-30);
+      const w = 480, h = 100, pad = 6;
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      svg.setAttribute('preserveAspectRatio', 'none');
+      svg.classList.add('sparkline');
+
+      // Baselines at 51 and 71.
+      for (const [y, color] of [[51, 'rgba(120,113,108,0.4)'], [71, 'rgba(251,191,36,0.4)']]) {
+        const yPos = h - pad - (y / 100) * (h - pad * 2);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', 0); line.setAttribute('x2', w);
+        line.setAttribute('y1', yPos); line.setAttribute('y2', yPos);
+        line.setAttribute('stroke', color);
+        line.setAttribute('stroke-dasharray', '3 3');
+        line.setAttribute('stroke-width', 1);
+        svg.appendChild(line);
+      }
+
+      if (recent.length === 0) {
+        const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        t.setAttribute('x', w / 2); t.setAttribute('y', h / 2);
+        t.setAttribute('fill', 'var(--stone-600)');
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('font-family', 'JetBrains Mono');
+        t.setAttribute('font-size', '10');
+        t.textContent = 'No history yet';
+        svg.appendChild(t);
+        return svg;
+      }
+
+      const stepX = recent.length > 1 ? (w - pad * 2) / (recent.length - 1) : 0;
+      const points = recent.map((e, i) => {
+        const x = pad + i * stepX;
+        const y = h - pad - (Math.max(0, Math.min(100, e.total)) / 100) * (h - pad * 2);
+        return [x, y];
+      });
+
+      const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', d);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#fbbf24');
+      path.setAttribute('stroke-width', '1.6');
+      path.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(path);
+
+      for (const [x, y] of points) {
+        const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        c.setAttribute('cx', x.toFixed(1));
+        c.setAttribute('cy', y.toFixed(1));
+        c.setAttribute('r', 1.6);
+        c.setAttribute('fill', '#fbbf24');
+        svg.appendChild(c);
+      }
+
+      return svg;
+    }
+
+    function flagsRow(label, value) {
+      const v = value;
+      let span;
+      if (typeof v === 'boolean') {
+        span = el('span', { class: v ? 'v-true' : 'v-false' }, v ? 'YES' : 'no');
+      } else if (typeof v === 'number') {
+        span = el('span', { class: 'v-num tabular' }, String(v));
+      } else if (v == null || v === '') {
+        span = el('span', { class: 'v-false' }, '—');
+      } else {
+        span = el('span', { class: 'v-num' }, String(v));
+      }
+      return [el('div', { class: 'key' }, label), span];
+    }
+
+    function render(data, history) {
+      const main = document.getElementById('main');
+      main.innerHTML = '';
+
+      const dateLabel = document.getElementById('today-date');
+      const today = new Date();
+      dateLabel.textContent = today.toISOString().slice(0, 10);
+
+      if (!data || !data.score || data.score.total == null) {
+        const card = el('div', { class: 'card' },
+          el('div', { class: 'label' }, 'Awaiting first run'),
+          el('div', { style: 'margin-top:10px;color:var(--stone-300);font-size:12px;' },
+            'No data.json yet. Trigger the GitHub Actions workflow once to generate the first score, ' +
+            'then refresh this page.'),
+          data && data.message ? el('div', { class: 'small', style: 'margin-top:8px;color:var(--stone-500);' }, data.message) : null,
+        );
+        main.appendChild(card);
+        return;
+      }
+
+      const total = data.score.total;
+      const cls = stateClass(total);
+
+      // Score card
+      const scoreCard = el('div', { class: 'card' });
+      scoreCard.appendChild(el('div', { class: 'row between baseline' },
+        el('div', { class: 'label' }, 'Composite Score'),
+        el('div', { class: `label state-${cls}` }, stateLabel(total)),
+      ));
+      scoreCard.appendChild(el('div', { class: 'row baseline gap-2', style: 'margin-top:6px;' },
+        el('span', { class: 'score tabular' }, String(total)),
+        el('span', { class: 'of100' }, '/100'),
+      ));
+      const mainBar = el('div', { class: `bar bar-${cls}` }, el('span', { style: `width:${Math.max(0, Math.min(100, total))}%` }));
+      scoreCard.appendChild(mainBar);
+
+      const layerWrap = el('div', { style: 'margin-top:18px;' });
+      for (const [label, key, max] of LAYERS) {
+        const v = data.score[key] ?? 0;
+        const pct = Math.max(0, Math.min(100, (v / max) * 100));
+        layerWrap.appendChild(el('div', { class: 'layer-row' },
+          el('div', { class: 'label' }, label),
+          el('div', { class: 'val tabular' }, String(v), el('span', { class: 'max' }, '/' + max)),
+          el('div', { class: 'mini-bar' }, el('span', { style: `width:${pct}%` })),
+        ));
+      }
+      scoreCard.appendChild(layerWrap);
+      main.appendChild(scoreCard);
+
+      // Today's read
+      const readCard = el('div', { class: 'card accent' });
+      readCard.appendChild(el('div', { class: 'label', style: 'color:var(--amber-300);' }, "Today's Read"));
+      const readBody = data.debrief
+        ? el('pre', {
+            style: 'white-space:pre-wrap;font-family:inherit;font-size:12px;color:var(--stone-300);margin:10px 0 0;',
+          }, data.debrief)
+        : el('div', { class: 'small', style: 'color:var(--stone-500);' }, 'No debrief generated.');
+      readCard.appendChild(readBody);
+      main.appendChild(readCard);
+
+      // What changes it
+      if (Array.isArray(data.what_changes) && data.what_changes.length) {
+        const ch = el('div', { class: 'card' });
+        ch.appendChild(el('div', { class: 'label' }, 'What Would Move The Score Up'));
+        const ul = el('ul', { class: 'changes', style: 'margin-top:10px;' });
+        for (const item of data.what_changes) ul.appendChild(el('li', null, item));
+        ch.appendChild(ul);
+        main.appendChild(ch);
+      }
+
+      // Sparkline
+      const sparkCard = el('div', { class: 'card' });
+      sparkCard.appendChild(el('div', { class: 'row between' },
+        el('div', { class: 'label' }, 'Score Trend (Last 30)'),
+        el('div', { class: 'micro stamp tabular' }, `${history.length} entries`),
+      ));
+      const sparkBox = el('div', { style: 'margin-top:10px;' }, sparkline(history));
+      sparkCard.appendChild(sparkBox);
+      main.appendChild(sparkCard);
+
+      // Manual flags
+      const f = data.manual_flags || {};
+      const editLink = data.repo_url
+        ? `${data.repo_url}/edit/main/manual_flags.json`
+        : null;
+
+      const flagsCard = el('div', { class: 'card' });
+      flagsCard.appendChild(el('div', { class: 'row between' },
+        el('div', { class: 'label' }, 'Manual Flags'),
+        editLink
+          ? el('a', { class: 'micro uppercase', href: editLink, target: '_blank', rel: 'noopener' }, 'Edit on GitHub')
+          : el('span', { class: 'micro stamp' }, 'edit manual_flags.json'),
+      ));
+      const flagsGrid = el('div', { class: 'flags', style: 'margin-top:12px;' });
+      for (const [label, key] of [
+        ['Gill active (7d)', 'gill_active_7d'],
+        ['Gill last seen', 'gill_last_seen'],
+        ['Cohen post (7d)', 'cohen_post_7d'],
+        ['Cohen last seen', 'cohen_last_seen'],
+        ['Macro / regulatory event', 'macro_event'],
+        ['Cash tier', 'cash_tier'],
+        ['OCF positive', 'ocf_positive'],
+        ['No dilution risk', 'no_dilution_risk'],
+        ['DRS locked ~25%', 'drs_locked'],
+        ['Borrow fee rising', 'borrow_fee_rising'],
+        ['Short volume %', 'short_vol_pct'],
+        ['Fundamentals updated', 'fundamentals_last_updated'],
+      ]) {
+        const cells = flagsRow(label, f[key]);
+        for (const c of cells) flagsGrid.appendChild(c);
+      }
+      flagsCard.appendChild(flagsGrid);
+      if (f.notes) {
+        flagsCard.appendChild(el('div', { class: 'small', style: 'margin-top:14px;color:var(--stone-400);' },
+          el('div', { class: 'label', style: 'margin-bottom:4px;' }, 'Notes'),
+          f.notes,
+        ));
+      }
+      main.appendChild(flagsCard);
+
+      // Data quality
+      if (data.data_quality && Object.keys(data.data_quality).length) {
+        const dq = el('details');
+        dq.appendChild(el('summary', null, el('span', null, 'Data Quality'), el('span', { class: 'micro stamp' }, '+')));
+        const body = el('div', { class: 'body' });
+        const dqGrid = el('div', { class: 'flags' });
+        for (const [k, v] of Object.entries(data.data_quality)) {
+          dqGrid.appendChild(el('div', { class: 'key' }, k));
+          dqGrid.appendChild(el('div', { class: v === 'ok' ? 'v-num' : 'v-false' }, String(v)));
+        }
+        body.appendChild(dqGrid);
+        dq.appendChild(body);
+        main.appendChild(dq);
+      }
+
+      // Methodology
+      const meth = el('details');
+      meth.appendChild(el('summary', null, el('span', null, 'Methodology'), el('span', { class: 'micro stamp' }, '+')));
+      meth.appendChild(el('div', { class: 'body', html: `
+        <p style="margin:0 0 10px;color:var(--stone-400);font-size:12px;">
+          Five layers, scored daily. Built from forensic work on the January 2021 and May 2024 GME spikes.
+          Floor 20 · Technical 20 · Options Tape 25 · Structural 15 · Catalyst 20.
+          The options tape is the heaviest single layer because it was the cleanest pre-May-2024 signal in the historical record.
+        </p>
+        <div class="label" style="margin-bottom:6px;">Score States</div>
+        <div class="flags">
+          <div class="key">0–30</div><div class="v-false">Quiet</div>
+          <div class="key">31–50</div><div class="v-num">Watching</div>
+          <div class="key">51–70</div><div class="v-num" style="color:var(--amber-200);">Elevated</div>
+          <div class="key">71–85</div><div class="v-num" style="color:var(--amber-300);">Heightened</div>
+          <div class="key">86–100</div><div class="v-num" style="color:var(--amber-400);">Significant Convergence</div>
+        </div>
+        <p style="margin:14px 0 0;color:var(--stone-500);font-size:11px;line-height:1.7;">
+          Calibrated on n=2 major spikes. Statistical robustness is low. Several inputs require subjective interpretation.
+          The score does not account for macro market regime. Past pre-spike conditions do not have to recur.
+        </p>
+      ` }));
+      main.appendChild(meth);
+
+      // Last updated stamp
+      if (data.updated_at) {
+        const ts = new Date(data.updated_at);
+        const tsCard = el('div', { class: 'small stamp', style: 'text-align:center;padding:6px 0 0;' },
+          `Last updated ${ts.toISOString().slice(0,16).replace('T',' ')} UTC`);
+        main.appendChild(tsCard);
+      }
+    }
+
+    async function load() {
+      let data = null, history = [];
+      try {
+        const r = await fetch('data.json?ts=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) data = await r.json();
+      } catch (e) { /* leave null */ }
+
+      try {
+        const r = await fetch('history.json?ts=' + Date.now(), { cache: 'no-store' });
+        if (r.ok) {
+          const h = await r.json();
+          if (Array.isArray(h)) history = h;
+        }
+      } catch (e) { /* leave empty */ }
+
+      render(data, history);
+    }
+
+    load();
+  </script>
+</body>
+</html>
