@@ -109,15 +109,28 @@ def pull_gme_data() -> tuple[dict, str]:
 def check_xrt_threshold() -> tuple[bool | None, str]:
     """Check NYSE Reg SHO threshold list for XRT.
 
+    XRT (SPDR S&P Retail ETF) is NYSE Arca-listed, so query the Arca file.
+    Format is pipe-delimited with a header row, security rows, and a
+    numeric timestamp footer:
+        Symbol|Security Name|Market Category|Reg SHO Threshold Flag|...
+
     Returns (status, message). status is True/False if known, None if check failed.
     """
-    today = date.today().strftime('%Y%m%d')
-    url = f'https://www.nyse.com/api/regulatory/threshold-securities/download?selectedDate={today}'
+    today = date.today().strftime('%Y-%m-%d')
+    url = (
+        'https://www.nyse.com/api/regulatory/threshold-securities/download'
+        f'?selectedDate={today}&market=NYSEArca'
+    )
     try:
         r = requests.get(url, timeout=15, headers={'User-Agent': 'KittyMonitor/2.0'})
-        if r.status_code == 200 and r.text:
-            return ('XRT' in r.text.upper()), 'ok'
-        return None, f'http {r.status_code}'
+        if r.status_code != 200:
+            return None, f'http {r.status_code}'
+        text = r.text or ''
+        for line in text.splitlines():
+            parts = line.split('|')
+            if parts and parts[0].strip().upper() == 'XRT':
+                return True, 'ok'
+        return False, 'ok'
     except Exception as e:
         return None, f'{type(e).__name__}: {e}'
 
