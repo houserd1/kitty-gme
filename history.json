@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "date": "2026-05-07",
+    "total": 42,
+    "l1": 20,
+    "l2": 15,
+    "l3": 5,
+    "l4": 2,
+    "l5": 0,
+    "price": 25.170000076293945,
+    "rsi": 49.953487315778986,
+    "vol_ratio": 1.1381487033407014,
+    "call_volume": 243077,
+    "put_volume": 56492,
+    "atm_iv_30d": 0.5351608984375,
+    "call_ratio": null,
+    "iv_rank": null,
+    "xrt_threshold": false,
+    "cohen_buy_7d": false,
+    "gill_active_7d": false,
+    "state": "Watching"
+  }
+]
