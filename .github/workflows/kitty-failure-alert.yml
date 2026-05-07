@@ -1,0 +1,45 @@
+name: Kitty Failure Alert
+
+# Sends a separate ntfy push whenever the main Kitty workflow fails.
+# Without this, a workflow crash is silent: the only signal would be the
+# absence of the daily score push, which is easy to miss.
+
+on:
+  workflow_run:
+    workflows: ["Kitty Daily Score"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  alert:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Push failure notification to ntfy
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if [ -z "$NTFY_TOPIC" ]; then
+            echo "NTFY_TOPIC not set, cannot notify."
+            exit 0
+          fi
+          BODY="Workflow run ${RUN_ID} failed at $(date -u +'%Y-%m-%d %H:%M UTC').
+
+          ${RUN_URL}
+
+          Open the Actions tab and expand the failed step for details."
+          curl -sS -X POST \
+            -H "Title: Kitty workflow FAILED" \
+            -H "Priority: high" \
+            -H "Tags: warning,rotating_light" \
+            --data-binary "$BODY" \
+            "https://ntfy.sh/${NTFY_TOPIC}"
