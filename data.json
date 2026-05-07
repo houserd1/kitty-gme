@@ -1,6 +1,6 @@
 {
   "date": "2026-05-07",
-  "updated_at": "2026-05-07T00:09:25+00:00",
+  "updated_at": "2026-05-07T09:59:19+00:00",
   "score": {
     "l1": 20,
     "l2": 15,
@@ -13,14 +13,14 @@
   "inputs": {
     "price": 25.170000076293945,
     "rsi": 49.953487315778986,
-    "vol_ratio": 1.1381487033407014,
+    "vol_ratio": 1.1354949517254915,
     "ma50": 23.946400146484375,
     "ma200": 23.249300022125244,
     "price_over_50dma": true,
     "price_over_200dma": true,
     "call_volume": 243077,
     "put_volume": 56492,
-    "atm_iv_30d": 0.5351608984375,
+    "atm_iv_30d": 1.0000000000000003e-05,
     "call_ratio": null,
     "iv_rank": null,
     "put_call_ratio": 0.23240372392287217,
@@ -39,7 +39,7 @@
     "ocf_positive": true,
     "no_dilution_risk": true
   },
-  "debrief": "Kitty Score 42/100 \u2014 Watching\nFloor 20/20 \u00b7 Tech 15/20 \u00b7 Tape 5/25 \u00b7 Struct 2/15 \u00b7 Cat 0/20\nPrice $25.17 \u00b7 RSI 50 \u00b7 Vol 1.14x\n\nAwaiting: options_relative\nData gaps: xrt_threshold",
+  "debrief": "Kitty Score 42/100 \u2014 Watching\nFloor 20/20 \u00b7 Tech 15/20 \u00b7 Tape 5/25 \u00b7 Struct 2/15 \u00b7 Cat 0/20\nPrice $25.17 \u00b7 RSI 50 \u00b7 Vol 1.14x\n\nAwaiting: options_relative",
   "what_changes": [
     "Call volume ratio above 2x with IV rank under 30 (now unknown, IV rank unknown)",
     "Gill posting on X, Reddit, or YouTube",
@@ -66,8 +66,8 @@
   "data_quality": {
     "price_data": "ok",
     "options_data": "ok",
-    "options_relative": "awaiting history (0/20 days)",
-    "xrt_threshold": "http 400",
+    "options_relative": "awaiting history (1/20 days)",
+    "xrt_threshold": "ok",
     "edgar_form4": "ok",
     "earnings_calendar": "ok"
   },
