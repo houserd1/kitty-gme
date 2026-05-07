@@ -23,12 +23,6 @@ concurrency:
   group: kitty
   cancel-in-progress: false
 
-# Opt the Node.js-based actions (checkout, setup-python) into Node 24
-# ahead of GitHub's June 2nd 2026 forced cutover. Silences the deprecation
-# warning that appears in older runs.
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -36,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
