@@ -23,6 +23,12 @@ concurrency:
   group: kitty
   cancel-in-progress: false
 
+# Opt the Node.js-based actions (checkout, setup-python) into Node 24
+# ahead of GitHub's June 2nd 2026 forced cutover. Silences the deprecation
+# warning that appears in older runs.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -59,7 +65,26 @@ jobs:
           git add data.json history.json
           if git diff --staged --quiet; then
             echo "No changes to commit."
-          else
-            git commit -m "kitty: $(date -u +%Y-%m-%d) score update"
-            git push
+            exit 0
           fi
+          git commit -m "kitty: $(date -u +%Y-%m-%d) score update"
+
+          # main can move between checkout and push (re-runs of older SHAs,
+          # other commits landing). Retry a few times. On conflict we keep
+          # the local commit's data.json / history.json since today's run is
+          # the freshest snapshot.
+          for attempt in 1 2 3; do
+            if git push; then
+              echo "Push succeeded on attempt $attempt."
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt. Fetching and rebasing..."
+            git fetch origin main
+            if ! git rebase --strategy-option=theirs origin/main; then
+              echo "Rebase failed. Aborting."
+              git rebase --abort || true
+              exit 1
+            fi
+          done
+          echo "Push failed after 3 attempts."
+          exit 1
