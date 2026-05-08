@@ -1,6 +1,6 @@
 {
   "date": "2026-05-08",
-  "updated_at": "2026-05-08T00:13:19+00:00",
+  "updated_at": "2026-05-08T11:47:47+00:00",
   "score": {
     "l1": 20,
     "l2": 15,
@@ -13,17 +13,17 @@
   "inputs": {
     "price": 23.969999313354492,
     "rsi": 47.438163243745805,
-    "vol_ratio": 0.7823248896497277,
+    "vol_ratio": 0.8379319285355148,
     "ma50": 23.941400146484376,
     "ma200": 23.247850017547606,
     "price_over_50dma": true,
     "price_over_200dma": true,
-    "call_volume": 192229,
-    "put_volume": 64987,
-    "atm_iv_30d": 0.5361374511718751,
+    "call_volume": 192362,
+    "put_volume": 64990,
+    "atm_iv_30d": 0.00196310546875,
     "call_ratio": null,
     "iv_rank": null,
-    "put_call_ratio": 0.3380707385462131,
+    "put_call_ratio": 0.337852590428463,
     "options_persistent": false,
     "xrt_threshold": false,
     "days_to_quarter_end": 53,
@@ -39,7 +39,7 @@
     "ocf_positive": true,
     "no_dilution_risk": true
   },
-  "debrief": "Kitty Score 42/100 \u2014 Watching\nFloor 20/20 \u00b7 Tech 15/20 \u00b7 Tape 5/25 \u00b7 Struct 2/15 \u00b7 Cat 0/20\nPrice $23.97 \u00b7 RSI 47 \u00b7 Vol 0.78x\n\nAwaiting: options_relative",
+  "debrief": "Kitty Score 42/100 \u2014 Watching\nFloor 20/20 \u00b7 Tech 15/20 \u00b7 Tape 5/25 \u00b7 Struct 2/15 \u00b7 Cat 0/20\nPrice $23.97 \u00b7 RSI 47 \u00b7 Vol 0.84x\n\nAwaiting: options_relative",
   "what_changes": [
     "Call volume ratio above 2x with IV rank under 30 (now unknown, IV rank unknown)",
     "Gill posting on X, Reddit, or YouTube",
