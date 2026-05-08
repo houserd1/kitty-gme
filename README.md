@@ -1,8 +1,8 @@
 # Kitty
 
-A scheduled monitoring framework that scores GameStop (GME) daily against historical pre-spike conditions and pushes a notification each weekday after market close. Personal analytical tool. Not financial advice.
+**Version 1.1.** A scheduled monitoring framework that scores GameStop (GME) daily against historical pre-spike conditions and pushes a notification each weekday after market close. Personal analytical tool. Not financial advice.
 
-The scoring framework is documented in [reference/kitty-framework-methodology.md](reference/kitty-framework-methodology.md). Five layers, 100 points total: Fundamental Floor (20), Technical Setup (20), Options Tape (25), Structural Backdrop (15), Catalyst Watch (20).
+The scoring framework is documented in [reference/kitty-framework-methodology.md](reference/kitty-framework-methodology.md) (the original v1.0 spec) and updated in [CHANGELOG.md](CHANGELOG.md) for subsequent revisions. Five layers, 106 points total in v1.1: Fundamental Floor (20), Technical Setup (22), Options Tape (25), Structural Backdrop (15), Catalyst Watch (24).
 
 ## How it runs
 
@@ -34,6 +34,28 @@ When you see Gill or Cohen post something, edit `manual_flags.json` from GitHub'
 
 After each GameStop earnings report, update the fundamental fields in `manual_flags.json` (`cash_tier`, `ocf_positive`, `no_dilution_risk`, `drs_locked`) and bump `fundamentals_last_updated` to the date you reviewed.
 
+## Score interpretation
+
+Thresholds are absolute heuristics, not percentile bands.
+
+| Score | State | Meaning |
+|---|---|---|
+| 0-30 | Quiet | Conditions don't resemble historical pre-spike setups. |
+| 31-50 | Watching | Some layers showing signal. Not actionable. |
+| 51-70 | Elevated | Multiple layers aligning. Mid-stage pre-spike setup. Notification fires here by default. |
+| 71-85 | Heightened | Most layers aligned. Late-stage pre-spike resemblance (April / early May 2024). |
+| 86+ | Significant Convergence | Layer alignment matches or exceeds historical pre-spike maximums. Rare. |
+
+The v1.1 max is 106 points (was 103 in v1.0). The thresholds above are unchanged because the score is a heuristic, not a normalized metric. A modest calibration drift comes with the framework expansion; that's accepted.
+
+**Regime caveat.** The score reads conditions; it does not distinguish structural accumulation setups from event-driven volatility. The May 2024 spike was preceded by quiet capitulation, not by a major news catalyst. When a tariff announcement, geopolitical event, or regulator action is driving the tape, set `event_driven_volatility` in `manual_flags.json` along with `event_description`. The script will:
+
+- Prepend a `REGIME WARNING` block to the daily debrief
+- Prefix the ntfy push title with `[EVENT-DRIVEN]` and bump priority to high
+- Render a red banner at the top of the dashboard with the event description
+
+The score itself is not adjusted. The flag is informational and should be reset to false once the event resolves.
+
 ## Configuration
 
 | Setting | Where | Default |
@@ -55,9 +77,12 @@ its own once the window expires. No manual reset.
 
 | Field | Update when |
 |---|---|
-| `gill_last_seen` | Set to today's date (ISO `YYYY-MM-DD`) when Gill posts on X, Reddit, or YouTube. Catalyst layer scores +10 for 7 days, then decays. |
+| `gill_last_seen` | Set to today's date (ISO `YYYY-MM-DD`) when Gill posts on X, Reddit, or YouTube. Catalyst layer scores +8 for 7 days, then decays. |
+| `gill_stockcharts_last_seen` | Set to today's date when Gill edits his public chartlist at `stockcharts.com/public/1778236`. Catalyst layer scores +3 for 7 days, then decays. Historically a leading tell before his X return. |
 | `cohen_last_seen` | Set to today's date when Cohen posts publicly on X. Catalyst layer scores +3 for 7 days, then decays. (Cohen Form 4 buys are auto-pulled from EDGAR; +5 for those is automatic.) |
-| `macro_event` | Material macro / regulatory event affecting market structure. Set true and remember to set false when it ages out. |
+| `event_driven_volatility` | Set true when an exogenous event (tariff announcement, war, regulator action) is driving GME's tape. Triggers REGIME WARNING in the debrief, `[EVENT-DRIVEN]` prefix on the push, and a red banner on the dashboard. Reset to false when the event resolves. Does not change the score. |
+| `event_description` | Short free-text description of the event (e.g. `"April tariff retaliation"`). Surfaced in the warning banner. |
+| `macro_event` | Material macro / regulatory event affecting market structure (Layer 5 +2). Different from `event_driven_volatility`; this one does score. Set true and remember to set false when it ages out. |
 | `cash_tier` | After each earnings: `over50`, `over30`, or `under30` (cash + securities vs market cap). |
 | `ocf_positive` | After each earnings: was operating cash flow positive last quarter. |
 | `no_dilution_risk` | After each earnings: any new ATM filings or convertibles. |
@@ -82,15 +107,18 @@ its own once the window expires. No manual reset.
 ## What's in this repo
 
 ```
-.github/workflows/kitty.yml    GitHub Actions schedule
-kitty.py                       Main script
-options_scraper.py             yfinance options snapshot + relative metrics
-manual_flags.json              Inputs that change less than daily
-data.json                      Latest run output (read by dashboard)
-history.json                   Rolling 365 entries
-index.html                     Static dashboard
-requirements.txt               Python deps
-reference/                     Background research and prototypes
+.github/workflows/kitty.yml                  GitHub Actions schedule
+.github/workflows/kitty-failure-alert.yml    ntfy push when main workflow fails
+kitty.py                                     Main script
+technicals.py                                OBV, MACD, weekly RSI (v1.1)
+options_scraper.py                           yfinance options snapshot + relative metrics
+manual_flags.json                            Inputs that change less than daily
+data.json                                    Latest run output (read by dashboard)
+history.json                                 Rolling 365 entries
+index.html                                   Static dashboard
+requirements.txt                             Python deps
+CHANGELOG.md                                 Versioned framework revisions
+reference/                                   Background research and prototypes
 ```
 
 ## Disclaimer
