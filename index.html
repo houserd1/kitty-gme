@@ -541,9 +541,22 @@
 
       // Manual flags
       const f = data.manual_flags || {};
+      const inputs = data.inputs || {};
       const editLink = data.repo_url
         ? `${data.repo_url}/edit/main/manual_flags.json`
         : null;
+
+      // Compose Gill / Cohen rows by combining the date with the derived
+      // active flag from inputs. The date is the source of truth in
+      // manual_flags.json; the boolean is computed by the script.
+      function lastSeenLabel(seen, active) {
+        if (!seen) return 'never';
+        const tag = active ? '  · ACTIVE' : '';
+        return `${seen}${tag}`;
+      }
+      function lastSeenClass(active) {
+        return active ? 'v-true' : 'v-num';
+      }
 
       const flagsCard = el('div', { class: 'card' });
       flagsCard.appendChild(el('div', { class: 'row between' },
@@ -553,11 +566,20 @@
           : el('span', { class: 'micro stamp' }, 'edit manual_flags.json'),
       ));
       const flagsGrid = el('div', { class: 'flags', style: 'margin-top:12px;' });
+
+      // Gill row
+      flagsGrid.appendChild(el('div', { class: 'key' }, 'Gill last seen'));
+      flagsGrid.appendChild(el('span', {
+        class: lastSeenClass(inputs.gill_active_7d),
+      }, lastSeenLabel(f.gill_last_seen, inputs.gill_active_7d)));
+
+      // Cohen row
+      flagsGrid.appendChild(el('div', { class: 'key' }, 'Cohen last seen'));
+      flagsGrid.appendChild(el('span', {
+        class: lastSeenClass(inputs.cohen_post_7d),
+      }, lastSeenLabel(f.cohen_last_seen, inputs.cohen_post_7d)));
+
       for (const [label, key] of [
-        ['Gill active (7d)', 'gill_active_7d'],
-        ['Gill last seen', 'gill_last_seen'],
-        ['Cohen post (7d)', 'cohen_post_7d'],
-        ['Cohen last seen', 'cohen_last_seen'],
         ['Macro / regulatory event', 'macro_event'],
         ['Cash tier', 'cash_tier'],
         ['OCF positive', 'ocf_positive'],
@@ -571,6 +593,11 @@
         for (const c of cells) flagsGrid.appendChild(c);
       }
       flagsCard.appendChild(flagsGrid);
+
+      // Hint text under the flags so the workflow is obvious.
+      flagsCard.appendChild(el('div', { class: 'small', style: 'margin-top:12px;color:var(--stone-500);font-size:11px;' },
+        'Edit gill_last_seen / cohen_last_seen to today’s date when you see a post. The active flag derives from the date with a 7-day window and decays automatically.',
+      ));
       if (f.notes) {
         flagsCard.appendChild(el('div', { class: 'small', style: 'margin-top:14px;color:var(--stone-400);' },
           el('div', { class: 'label', style: 'margin-bottom:4px;' }, 'Notes'),

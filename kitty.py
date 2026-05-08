@@ -161,6 +161,26 @@ def check_recent_form4_filings() -> tuple[bool | None, str]:
         return None, f'{type(e).__name__}: {e}'
 
 
+def is_recent(date_str, window_days: int = 7) -> bool:
+    """True if date_str (ISO YYYY-MM-DD) is within window_days of today.
+
+    The methodology calls for "in the last 7 days" decay on Gill / Cohen
+    activity flags. The user only updates a date field; this function
+    derives the boolean so the score self-decays without manual reset.
+
+    None, empty string, or unparseable dates return False. Future dates
+    return True (treated as today).
+    """
+    if not date_str:
+        return False
+    try:
+        seen = date.fromisoformat(str(date_str).strip()[:10])
+    except (ValueError, TypeError):
+        return False
+    delta = (date.today() - seen).days
+    return delta <= window_days  # negative deltas (future dates) also pass
+
+
 def days_to_quarter_end() -> int:
     today = date.today()
     candidates = [
@@ -477,6 +497,15 @@ def main():
     if not isinstance(history, list):
         history = []
 
+    # Warn on deprecated schema. The booleans are now derived from the
+    # *_last_seen dates with a 7-day window. Editing the booleans has
+    # no effect and is a foot-gun (no auto-decay).
+    deprecated = [k for k in ('gill_active_7d', 'cohen_post_7d') if k in flags]
+    if deprecated:
+        print(f"warn: manual_flags.json contains deprecated fields: {deprecated}. "
+              f"These are now derived from gill_last_seen / cohen_last_seen. "
+              f"Edit the date fields instead.", file=sys.stderr)
+
     print("Pulling GME price/technicals...")
     gme_data, gme_status = pull_gme_data()
     print(f"  -> {gme_status}")
@@ -525,8 +554,12 @@ def main():
         'drs_locked': bool(flags.get('drs_locked', True)),
 
         'cohen_buy_7d': cohen_buy if cohen_buy is not None else False,
-        'cohen_post_7d': bool(flags.get('cohen_post_7d', False)),
-        'gill_active_7d': bool(flags.get('gill_active_7d', False)),
+        # Derived from manual_flags last-seen dates. The flag is true only
+        # while the date is within the 7-day window. No manual reset needed.
+        'cohen_post_7d': is_recent(flags.get('cohen_last_seen')),
+        'cohen_last_seen': flags.get('cohen_last_seen'),
+        'gill_active_7d': is_recent(flags.get('gill_last_seen')),
+        'gill_last_seen': flags.get('gill_last_seen'),
         'days_to_earnings': e_days,
         'macro_event': bool(flags.get('macro_event', False)),
 

@@ -48,19 +48,23 @@ To change the schedule, edit the `cron` line. To change the alert threshold for 
 
 ## Manual flags reference
 
+The Gill and Cohen activity signals decay automatically. Edit only the
+`*_last_seen` date when you see a post. The script derives the 7-day
+active flag from that date, so the catalyst layer drops the credit on
+its own once the window expires. No manual reset.
+
 | Field | Update when |
 |---|---|
-| `gill_active_7d` | Gill posts on X, Reddit, or YouTube. Reset after 7 days. |
-| `gill_last_seen` | Date of most recent Gill activity (ISO format). |
-| `cohen_post_7d` | Cohen makes a public statement on X. Reset after 7 days. |
-| `cohen_last_seen` | Date of most recent Cohen post. |
-| `macro_event` | Material macro / regulatory event affecting market structure. |
+| `gill_last_seen` | Set to today's date (ISO `YYYY-MM-DD`) when Gill posts on X, Reddit, or YouTube. Catalyst layer scores +10 for 7 days, then decays. |
+| `cohen_last_seen` | Set to today's date when Cohen posts publicly on X. Catalyst layer scores +3 for 7 days, then decays. (Cohen Form 4 buys are auto-pulled from EDGAR; +5 for those is automatic.) |
+| `macro_event` | Material macro / regulatory event affecting market structure. Set true and remember to set false when it ages out. |
 | `cash_tier` | After each earnings: `over50`, `over30`, or `under30` (cash + securities vs market cap). |
 | `ocf_positive` | After each earnings: was operating cash flow positive last quarter. |
 | `no_dilution_risk` | After each earnings: any new ATM filings or convertibles. |
 | `drs_locked` | After each 10-Q: is DRS share count still ~25% of float. |
 | `borrow_fee_rising` | When you check IBKR / Fintel and the trend is up week-over-week. |
 | `short_vol_pct` | Most recent FINRA short volume % (from shortvolume.com or Fintel). |
+| `fundamentals_last_updated` | Bump to today's date after refreshing the four `cash_tier` / `ocf_positive` / `no_dilution_risk` / `drs_locked` fields. The dashboard warns if this is more than 100 days old. |
 | `notes` | Free text. |
 
 ## Troubleshooting
