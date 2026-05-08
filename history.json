@@ -19,5 +19,26 @@
     "cohen_buy_7d": false,
     "gill_active_7d": false,
     "state": "Watching"
+  },
+  {
+    "date": "2026-05-08",
+    "total": 42,
+    "l1": 20,
+    "l2": 15,
+    "l3": 5,
+    "l4": 2,
+    "l5": 0,
+    "price": 23.969999313354492,
+    "rsi": 47.438163243745805,
+    "vol_ratio": 0.7823248896497277,
+    "call_volume": 192229,
+    "put_volume": 64987,
+    "atm_iv_30d": 0.5361374511718751,
+    "call_ratio": null,
+    "iv_rank": null,
+    "xrt_threshold": false,
+    "cohen_buy_7d": false,
+    "gill_active_7d": false,
+    "state": "Watching"
   }
 ]
