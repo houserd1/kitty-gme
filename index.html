@@ -199,6 +199,32 @@
     }
     .warning-banner.soft .label { color: var(--amber-300); }
 
+    .regime-banner {
+      border: 2px solid #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+      color: #fca5a5;
+      padding: 14px 16px;
+      margin: 0 0 16px;
+      font-size: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .regime-banner svg {
+      width: 20px; height: 20px;
+      color: #ef4444;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .regime-banner .label {
+      color: #ef4444;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      margin-bottom: 6px;
+    }
+    .regime-banner .body { color: #fca5a5; line-height: 1.6; }
+    .regime-banner .desc { color: #fde68a; font-weight: 500; }
+
     footer {
       color: var(--stone-600);
       font-size: 10px;
@@ -239,7 +265,7 @@
       <div class="row between baseline">
         <div class="row baseline gap-2">
           <span class="wordmark">Kitty</span>
-          <span class="micro uppercase stamp">v1.0</span>
+          <span class="micro uppercase stamp" id="version-stamp">v1.1</span>
         </div>
         <div class="micro stamp tabular" id="today-date"></div>
       </div>
@@ -256,13 +282,46 @@
   </footer>
 
   <script>
-    const LAYERS = [
+    // Default layer maxes for v1.1. Overridden by data.layer_max if present
+    // so the dashboard tracks future framework changes without a redeploy.
+    const DEFAULT_LAYERS = [
       ['Floor', 'l1', 20],
-      ['Technical', 'l2', 20],
+      ['Technical', 'l2', 22],
       ['Options Tape', 'l3', 25],
       ['Structural', 'l4', 15],
-      ['Catalyst', 'l5', 20],
+      ['Catalyst', 'l5', 24],
     ];
+
+    function layersFor(data) {
+      const lm = data && data.layer_max;
+      if (!lm) return DEFAULT_LAYERS;
+      return DEFAULT_LAYERS.map(([label, key]) => [label, key, lm[key] ?? 0]);
+    }
+
+    function totalMaxFor(data, layers) {
+      if (data && typeof data.total_max === 'number') return data.total_max;
+      return layers.reduce((s, [, , m]) => s + m, 0);
+    }
+
+    function alertTriangleSVG() {
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '2');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z');
+      const l1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l1.setAttribute('x1', '12'); l1.setAttribute('y1', '9');
+      l1.setAttribute('x2', '12'); l1.setAttribute('y2', '13');
+      const l2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l2.setAttribute('x1', '12'); l2.setAttribute('y1', '17');
+      l2.setAttribute('x2', '12.01'); l2.setAttribute('y2', '17');
+      svg.appendChild(path); svg.appendChild(l1); svg.appendChild(l2);
+      return svg;
+    }
 
     function stateClass(score) {
       if (score == null) return 'quiet';
@@ -418,6 +477,13 @@
       const today = new Date();
       dateLabel.textContent = today.toISOString().slice(0, 10);
 
+      // Reflect the live version from data.json so the header stamp tracks
+      // the script automatically as the framework evolves.
+      const versionStamp = document.getElementById('version-stamp');
+      if (versionStamp && data && data.version) {
+        versionStamp.textContent = `v${data.version}`;
+      }
+
       if (!data || !data.score || data.score.total == null) {
         const card = el('div', { class: 'card' },
           el('div', { class: 'label' }, 'Awaiting first run'),
@@ -432,6 +498,27 @@
 
       const total = data.score.total;
       const cls = stateClass(total);
+      const layers = layersFor(data);
+      const totalMax = totalMaxFor(data, layers);
+
+      // Regime warning — score is unchanged; this caveats interpretation.
+      if (data.event_driven_volatility) {
+        const desc = (data.event_description || '').trim() || '[no description provided]';
+        const banner = el('div', { class: 'regime-banner' });
+        banner.appendChild(alertTriangleSVG());
+        banner.appendChild(el('div', { style: 'flex:1;min-width:0;' },
+          el('div', { class: 'label' }, 'REGIME WARNING'),
+          el('div', { class: 'body' },
+            'Recent volatility is being driven by ',
+            el('span', { class: 'desc' }, desc),
+            '. The Kitty score reads conditions but cannot distinguish structural ' +
+            'accumulation setups from event-driven volatility. The May 2024 spike was ' +
+            'preceded by quiet capitulation, not by a major news catalyst. Treat the ' +
+            'score with reduced confidence until the event resolves.',
+          ),
+        ));
+        main.appendChild(banner);
+      }
 
       // Staleness banner — workflow may have failed silently if data.json is old.
       if (data.updated_at) {
@@ -488,17 +575,20 @@
       ));
       const scoreLine = el('div', { class: 'row baseline gap-2', style: 'margin-top:6px;flex-wrap:wrap;' },
         el('span', { class: 'score tabular' }, String(total)),
-        el('span', { class: 'of100' }, '/100'),
+        el('span', { class: 'of100' }, '/' + totalMax),
       );
       if (deltaNode) scoreLine.appendChild(deltaNode);
       scoreCard.appendChild(scoreLine);
-      const mainBar = el('div', { class: `bar bar-${cls}` }, el('span', { style: `width:${Math.max(0, Math.min(100, total))}%` }));
+      // Bar fill is normalized against totalMax so the visual stays meaningful
+      // even as the framework's max evolves.
+      const fillPct = Math.max(0, Math.min(100, (total / totalMax) * 100));
+      const mainBar = el('div', { class: `bar bar-${cls}` }, el('span', { style: `width:${fillPct}%` }));
       scoreCard.appendChild(mainBar);
 
       const layerWrap = el('div', { style: 'margin-top:18px;' });
-      for (const [label, key, max] of LAYERS) {
+      for (const [label, key, max] of layers) {
         const v = data.score[key] ?? 0;
-        const pct = Math.max(0, Math.min(100, (v / max) * 100));
+        const pct = max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0;
         layerWrap.appendChild(el('div', { class: 'layer-row' },
           el('div', { class: 'label' }, label),
           el('div', { class: 'val tabular' }, String(v), el('span', { class: 'max' }, '/' + max)),
@@ -573,11 +663,23 @@
         class: lastSeenClass(inputs.gill_active_7d),
       }, lastSeenLabel(f.gill_last_seen, inputs.gill_active_7d)));
 
+      // Gill StockCharts row (v1.1)
+      flagsGrid.appendChild(el('div', { class: 'key' }, 'Gill StockCharts'));
+      flagsGrid.appendChild(el('span', {
+        class: lastSeenClass(inputs.gill_stockcharts_active_7d),
+      }, lastSeenLabel(f.gill_stockcharts_last_seen, inputs.gill_stockcharts_active_7d)));
+
       // Cohen row
       flagsGrid.appendChild(el('div', { class: 'key' }, 'Cohen last seen'));
       flagsGrid.appendChild(el('span', {
         class: lastSeenClass(inputs.cohen_post_7d),
       }, lastSeenLabel(f.cohen_last_seen, inputs.cohen_post_7d)));
+
+      // Regime caveat row — does not change the score, but worth surfacing.
+      flagsGrid.appendChild(el('div', { class: 'key' }, 'Event-driven volatility'));
+      flagsGrid.appendChild(el('span', {
+        class: f.event_driven_volatility ? 'v-true' : 'v-false',
+      }, f.event_driven_volatility ? 'YES' : 'no'));
 
       for (const [label, key] of [
         ['Macro / regulatory event', 'macro_event'],
@@ -596,7 +698,7 @@
 
       // Hint text under the flags so the workflow is obvious.
       flagsCard.appendChild(el('div', { class: 'small', style: 'margin-top:12px;color:var(--stone-500);font-size:11px;' },
-        'Edit gill_last_seen / cohen_last_seen to today’s date when you see a post. The active flag derives from the date with a 7-day window and decays automatically.',
+        'Edit gill_last_seen / gill_stockcharts_last_seen / cohen_last_seen to today’s date when you see activity. The active flag derives from the date with a 7-day window and decays automatically. Set event_driven_volatility when an exogenous event (tariffs, war, regulator action) is driving price; the regime warning will display until you reset it.',
       ));
       if (f.notes) {
         flagsCard.appendChild(el('div', { class: 'small', style: 'margin-top:14px;color:var(--stone-400);' },
@@ -622,25 +724,54 @@
       }
 
       // Methodology
+      const versionLabel = data.version ? `v${data.version}` : 'v1.1';
       const meth = el('details');
-      meth.appendChild(el('summary', null, el('span', null, 'Methodology'), el('span', { class: 'toggle' })));
+      meth.appendChild(el('summary', null,
+        el('span', null, `Methodology (${versionLabel})`),
+        el('span', { class: 'toggle' }),
+      ));
       meth.appendChild(el('div', { class: 'body', html: `
         <p style="margin:0 0 10px;color:var(--stone-400);font-size:12px;">
           Five layers, scored daily. Built from forensic work on the January 2021 and May 2024 GME spikes.
-          Floor 20 · Technical 20 · Options Tape 25 · Structural 15 · Catalyst 20.
+          Floor 20 · Technical 22 · Options Tape 25 · Structural 15 · Catalyst 24. Total max ${totalMax}.
           The options tape is the heaviest single layer because it was the cleanest pre-May-2024 signal in the historical record.
         </p>
-        <div class="label" style="margin-bottom:6px;">Score States</div>
+        <div class="label" style="margin-bottom:6px;">Layer 2 (Technical) signals</div>
+        <ul style="color:var(--stone-400);font-size:11px;padding-left:18px;margin:0 0 10px;">
+          <li>Price &gt; 50DMA: 3 · Price &gt; 200DMA: 3</li>
+          <li>RSI(14) in 40–65: 3 · RSI(14) &gt; 75 penalty: −5</li>
+          <li>Volume ratio &gt; 1.5×: 3</li>
+          <li>OBV slope positive over 20d: 5 (the headline addition)</li>
+          <li>MACD bullish crossover in last 10 sessions: 2</li>
+          <li>Weekly RSI(14) in 40–65: 3</li>
+        </ul>
+        <div class="label" style="margin-bottom:6px;">Layer 5 (Catalyst) signals</div>
+        <ul style="color:var(--stone-400);font-size:11px;padding-left:18px;margin:0 0 10px;">
+          <li>Cohen Form 4 buy in last 7d: 5 (auto from EDGAR)</li>
+          <li>Cohen public post in last 7d: 3 (manual date)</li>
+          <li>Gill social activity in last 7d: 8 (manual date)</li>
+          <li>Gill StockCharts edit in last 7d: 3 (manual date)</li>
+          <li>Earnings within 30d: 3 · Macro event: 2</li>
+        </ul>
+        <div class="label" style="margin-bottom:6px;">Score states</div>
         <div class="flags">
           <div class="key">0–30</div><div class="v-false">Quiet</div>
           <div class="key">31–50</div><div class="v-num">Watching</div>
           <div class="key">51–70</div><div class="v-num" style="color:var(--amber-200);">Elevated</div>
           <div class="key">71–85</div><div class="v-num" style="color:var(--amber-300);">Heightened</div>
-          <div class="key">86–100</div><div class="v-num" style="color:var(--amber-400);">Significant Convergence</div>
+          <div class="key">86+</div><div class="v-num" style="color:var(--amber-400);">Significant Convergence</div>
         </div>
         <p style="margin:14px 0 0;color:var(--stone-500);font-size:11px;line-height:1.7;">
-          Calibrated on n=2 major spikes. Statistical robustness is low. Several inputs require subjective interpretation.
-          The score does not account for macro market regime. Past pre-spike conditions do not have to recur.
+          Score interpretation: thresholds are absolute heuristics, not percentile bands.
+          A high score reads "today's conditions resemble historical pre-spike setups" — not a prediction.
+          When event_driven_volatility is set, a regime warning displays at the top of the dashboard
+          and the score reading carries reduced confidence: the May 2024 spike was preceded by
+          quiet capitulation, not by a major news catalyst, so news-driven chop can produce
+          elevated readings that do not match the historical pattern.
+        </p>
+        <p style="margin:14px 0 0;color:var(--stone-500);font-size:11px;line-height:1.7;">
+          Calibrated on n=2 major spikes. Statistical robustness is low. Several inputs require
+          subjective interpretation. Past pre-spike conditions do not have to recur.
         </p>
       ` }));
       main.appendChild(meth);
