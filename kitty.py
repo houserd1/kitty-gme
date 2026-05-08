@@ -36,8 +36,11 @@ except ImportError:
     sys.exit(1)
 
 import options_scraper
+import technicals
 
 # --- CONFIG ---------------------------------------------------------------
+
+KITTY_VERSION = '1.1'
 
 REPO_ROOT = Path(__file__).resolve().parent
 DATA_FILE = REPO_ROOT / 'data.json'
@@ -50,19 +53,26 @@ NTFY_SERVER = os.environ.get('NTFY_SERVER', 'https://ntfy.sh')
 DEFAULT_ALERT_THRESHOLD = 51
 HISTORY_LIMIT = 365
 
+# Maximum points per layer in v1.1. Floor 20 + Tech 22 + Tape 25 + Struct 15
+# + Cat 24 = 106. The 51/71/86 thresholds are kept as absolute heuristics.
+LAYER_MAX = {'l1': 20, 'l2': 22, 'l3': 25, 'l4': 15, 'l5': 24}
+TOTAL_MAX = sum(LAYER_MAX.values())
+
 
 # --- DATA PULLS -----------------------------------------------------------
 
-def pull_gme_data() -> tuple[dict, str]:
-    """Pull GME daily data from yfinance and compute technicals.
+def pull_gme_data() -> tuple[dict, str, object]:
+    """Pull GME daily data from yfinance and compute baseline technicals.
 
-    Returns (data_dict, status_string). data_dict is empty on failure.
+    Returns (data_dict, status_string, history_df). history_df is the raw
+    yfinance DataFrame (or None on failure) so the technicals module can
+    reuse it without a second network call.
     """
     try:
         gme = yf.Ticker('GME')
         hist = gme.history(period='1y', auto_adjust=False)
         if len(hist) < 50:
-            return {}, f'insufficient history ({len(hist)} rows)'
+            return {}, f'insufficient history ({len(hist)} rows)', None
 
         last = hist.iloc[-1]
         close = float(last['Close'])
@@ -101,9 +111,9 @@ def pull_gme_data() -> tuple[dict, str]:
             'vol_ratio': vol_ratio,
             'ma50': ma50,
             'ma200': ma200,
-        }, 'ok'
+        }, 'ok', hist
     except Exception as e:
-        return {}, f'{type(e).__name__}: {e}'
+        return {}, f'{type(e).__name__}: {e}', None
 
 
 def check_xrt_threshold() -> tuple[bool | None, str]:
@@ -246,18 +256,27 @@ def compute_score(inputs: dict) -> dict:
     if inputs.get('no_dilution_risk'):
         l1 += 5
 
+    # Layer 2 (v1.1): reweighted to make room for OBV (5), MACD recent
+    # crossover (2), and weekly RSI (3). Max 22, penalty -5 still applies.
     l2 = 0
     if inputs.get('price_over_50dma'):
-        l2 += 5
+        l2 += 3
     if inputs.get('price_over_200dma'):
-        l2 += 5
+        l2 += 3
     rsi = inputs.get('rsi', 50)
     if 40 <= rsi <= 65:
-        l2 += 5
+        l2 += 3
     if rsi > 75:
         l2 -= 5
     if inputs.get('vol_ratio', 1.0) > 1.5:
+        l2 += 3
+    if inputs.get('obv_slope_positive'):
         l2 += 5
+    if inputs.get('macd_bullish_recent'):
+        l2 += 2
+    wrsi = inputs.get('weekly_rsi')
+    if wrsi is not None and 40 <= wrsi <= 65:
+        l2 += 3
 
     l3 = 0
     cr = inputs.get('call_ratio')
@@ -290,13 +309,18 @@ def compute_score(inputs: dict) -> dict:
     if inputs.get('drs_locked', True):
         l4 += 2
 
+    # Layer 5 (v1.1): Gill social reduced from 10 to 8 to make room for
+    # Gill StockCharts (3), since chartlist edits historically preceded
+    # his X return. Max 24.
     l5 = 0
     if inputs.get('cohen_buy_7d'):
         l5 += 5
     if inputs.get('cohen_post_7d'):
         l5 += 3
     if inputs.get('gill_active_7d'):
-        l5 += 10
+        l5 += 8
+    if inputs.get('gill_stockcharts_active_7d'):
+        l5 += 3
     e_days = inputs.get('days_to_earnings')
     if e_days is not None and 0 <= e_days <= 30:
         l5 += 3
@@ -333,13 +357,36 @@ def state_emoji(score: int) -> str:
 
 # --- DEBRIEF GENERATION ---------------------------------------------------
 
-def generate_debrief(scores: dict, inputs: dict, data_quality: dict) -> str:
+def generate_debrief(
+    scores: dict,
+    inputs: dict,
+    data_quality: dict,
+    event_driven: bool = False,
+    event_description: str = '',
+) -> str:
     state = state_label(scores['total'])
-    lines = [
-        f"Kitty Score {scores['total']}/100 — {state}",
-        f"Floor {scores['l1']}/20 · Tech {scores['l2']}/20 · Tape {scores['l3']}/25 "
-        f"· Struct {scores['l4']}/15 · Cat {scores['l5']}/20",
-    ]
+    lines: list[str] = []
+
+    if event_driven:
+        desc = event_description.strip() if event_description else '[no description provided]'
+        lines.append('REGIME WARNING')
+        lines.append(
+            f"Recent volatility is being driven by {desc}. The Kitty score reads "
+            f"conditions but cannot distinguish structural accumulation setups from "
+            f"event-driven volatility. The May 2024 spike was preceded by quiet "
+            f"capitulation, not by a major news catalyst. Treat the score with "
+            f"reduced confidence until the event resolves."
+        )
+        lines.append('')
+
+    lines.append(f"Kitty Score {scores['total']}/{TOTAL_MAX} — {state}")
+    lines.append(
+        f"Floor {scores['l1']}/{LAYER_MAX['l1']} · "
+        f"Tech {scores['l2']}/{LAYER_MAX['l2']} · "
+        f"Tape {scores['l3']}/{LAYER_MAX['l3']} · "
+        f"Struct {scores['l4']}/{LAYER_MAX['l4']} · "
+        f"Cat {scores['l5']}/{LAYER_MAX['l5']}"
+    )
 
     if inputs.get('price') is not None:
         rsi = inputs.get('rsi', 0)
@@ -347,10 +394,19 @@ def generate_debrief(scores: dict, inputs: dict, data_quality: dict) -> str:
         lines.append(f"Price ${inputs['price']:.2f} · RSI {rsi:.0f} · Vol {vr:.2f}x")
 
     notes = []
+    if inputs.get('obv_slope_positive'):
+        notes.append("OBV trending up: accumulation pattern.")
+    if inputs.get('macd_bullish_recent'):
+        notes.append("MACD bullish crossover in the last 10 sessions.")
+    wrsi = inputs.get('weekly_rsi')
+    if wrsi is not None and 40 <= wrsi <= 65:
+        notes.append(f"Weekly RSI in recovery zone ({wrsi:.0f}).")
     if scores['l3'] >= 20:
         notes.append("Options tape is loud.")
     if inputs.get('gill_active_7d'):
-        notes.append("Gill recently active. Strongest single-day catalyst on record.")
+        notes.append("Gill recently active on social. Strongest single-day catalyst on record.")
+    if inputs.get('gill_stockcharts_active_7d'):
+        notes.append("Gill chartlist edited recently. Historically a leading tell.")
     if inputs.get('cohen_buy_7d'):
         notes.append("Cohen Form 4 buy in the last 7 days.")
     if scores['l4'] >= 10 and inputs.get('xrt_threshold'):
@@ -390,16 +446,22 @@ def what_changes_it(scores: dict, inputs: dict) -> list[str]:
         items.append(f"Call volume ratio above 2x with IV rank under 30 (now {cr_str}, IV rank {iv_str})")
     if not inputs.get('gill_active_7d'):
         items.append("Gill posting on X, Reddit, or YouTube")
+    if not inputs.get('gill_stockcharts_active_7d'):
+        items.append("Gill editing his StockCharts public chartlist")
     if not inputs.get('cohen_buy_7d'):
         items.append("A new Form 4 disclosing Cohen open-market buying")
     if not inputs.get('xrt_threshold'):
         items.append("XRT appearing on the Reg SHO threshold list")
+    if inputs.get('obv_slope_positive') is False:
+        items.append("OBV slope turning positive over a 20-day window")
+    if inputs.get('macd_bullish_recent') is False:
+        items.append("A fresh MACD bullish crossover")
     dq = inputs.get('days_to_quarter_end', 60)
     if dq > 20:
         items.append(f"Approach of quarter-end (now {dq} days out)")
     if not inputs.get('options_persistent'):
         items.append("Three or more consecutive days of unusual options activity")
-    return items[:5]
+    return items[:6]
 
 
 # --- I/O ------------------------------------------------------------------
@@ -442,18 +504,31 @@ def append_history(history: list, entry: dict) -> list:
 
 # --- NOTIFICATIONS --------------------------------------------------------
 
-def push_notification(title: str, body: str, priority: str = 'default') -> tuple[bool, str]:
+def push_notification(
+    title: str,
+    body: str,
+    priority: str = 'default',
+    event_driven: bool = False,
+) -> tuple[bool, str]:
     """Push a message via ntfy.sh.
 
     ntfy headers technically require ASCII. Non-ASCII titles are encoded
     via RFC 2047 base64. The body itself is sent as raw UTF-8 bytes.
+
+    When event_driven is True, the title is prefixed with [EVENT-DRIVEN]
+    and priority is bumped to high so the regime caveat reads loudly.
     """
     if not NTFY_TOPIC:
         return False, 'NTFY_TOPIC not set'
 
+    if event_driven:
+        title = f'[EVENT-DRIVEN] {title}'
+        if priority == 'default':
+            priority = 'high'
+
     headers = {
         'Priority': priority,
-        'Tags': 'cat',
+        'Tags': 'warning,cat' if event_driven else 'cat',
     }
 
     if any(ord(c) > 127 for c in title):
@@ -490,7 +565,7 @@ def main():
                         help='Print only, do not write data.json or history.json or push')
     args = parser.parse_args()
 
-    print(f"=== Kitty Run — {date.today().isoformat()} ===")
+    print(f"=== Kitty Run v{KITTY_VERSION} — {date.today().isoformat()} ===")
 
     flags = load_json(MANUAL_FLAGS_FILE, {})
     history = load_json(HISTORY_FILE, [])
@@ -500,15 +575,23 @@ def main():
     # Warn on deprecated schema. The booleans are now derived from the
     # *_last_seen dates with a 7-day window. Editing the booleans has
     # no effect and is a foot-gun (no auto-decay).
-    deprecated = [k for k in ('gill_active_7d', 'cohen_post_7d') if k in flags]
+    deprecated = [k for k in ('gill_active_7d', 'cohen_post_7d', 'gill_stockcharts_active_7d')
+                  if k in flags]
     if deprecated:
         print(f"warn: manual_flags.json contains deprecated fields: {deprecated}. "
-              f"These are now derived from gill_last_seen / cohen_last_seen. "
+              f"These are now derived from *_last_seen dates. "
               f"Edit the date fields instead.", file=sys.stderr)
 
+    event_driven = bool(flags.get('event_driven_volatility', False))
+    event_description = str(flags.get('event_description', '') or '')
+
     print("Pulling GME price/technicals...")
-    gme_data, gme_status = pull_gme_data()
+    gme_data, gme_status, gme_history_df = pull_gme_data()
     print(f"  -> {gme_status}")
+
+    print("Computing advanced technicals (OBV, MACD, weekly RSI)...")
+    adv, adv_status = technicals.compute_advanced(gme_history_df)
+    print(f"  -> {adv_status}")
 
     print("Pulling options snapshot...")
     snap = options_scraper.pull_snapshot('GME')
@@ -539,6 +622,12 @@ def main():
         'price_over_50dma': gme_data.get('price_over_50dma', False),
         'price_over_200dma': gme_data.get('price_over_200dma', False),
 
+        # v1.1 Layer 2 additions
+        'obv_slope': adv.get('obv_slope'),
+        'obv_slope_positive': bool(adv.get('obv_slope_positive')),
+        'macd_bullish_recent': bool(adv.get('macd_bullish_recent')),
+        'weekly_rsi': adv.get('weekly_rsi'),
+
         'call_volume': snap.get('call_volume'),
         'put_volume': snap.get('put_volume'),
         'atm_iv_30d': snap.get('atm_iv_30d'),
@@ -560,12 +649,18 @@ def main():
         'cohen_last_seen': flags.get('cohen_last_seen'),
         'gill_active_7d': is_recent(flags.get('gill_last_seen')),
         'gill_last_seen': flags.get('gill_last_seen'),
+        'gill_stockcharts_active_7d': is_recent(flags.get('gill_stockcharts_last_seen')),
+        'gill_stockcharts_last_seen': flags.get('gill_stockcharts_last_seen'),
         'days_to_earnings': e_days,
         'macro_event': bool(flags.get('macro_event', False)),
 
         'cash_tier': flags.get('cash_tier', 'over50'),
         'ocf_positive': bool(flags.get('ocf_positive', True)),
         'no_dilution_risk': bool(flags.get('no_dilution_risk', True)),
+
+        # Regime caveat — does NOT change the score, only the read.
+        'event_driven_volatility': event_driven,
+        'event_description': event_description,
     }
 
     scores = compute_score(inputs)
@@ -573,6 +668,7 @@ def main():
 
     data_quality = {
         'price_data': gme_status,
+        'advanced_technicals': adv_status,
         'options_data': snap.get('data_quality'),
         'options_relative': rel.get('data_quality'),
         'xrt_threshold': xrt_msg,
@@ -580,7 +676,7 @@ def main():
         'earnings_calendar': earnings_msg,
     }
 
-    debrief = generate_debrief(scores, inputs, data_quality)
+    debrief = generate_debrief(scores, inputs, data_quality, event_driven, event_description)
     changes = what_changes_it(scores, inputs)
 
     print()
@@ -591,10 +687,15 @@ def main():
     repo_url = f"https://github.com/{repo}" if repo else None
 
     record = {
+        'version': KITTY_VERSION,
         'date': date.today().isoformat(),
         'updated_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
         'score': scores,
+        'layer_max': LAYER_MAX,
+        'total_max': TOTAL_MAX,
         'state': state,
+        'event_driven_volatility': event_driven,
+        'event_description': event_description,
         'inputs': inputs,
         'debrief': debrief,
         'what_changes': changes,
@@ -606,12 +707,16 @@ def main():
 
     history_entry = {
         'date': record['date'],
+        'version': KITTY_VERSION,
         'total': scores['total'],
         'l1': scores['l1'], 'l2': scores['l2'], 'l3': scores['l3'],
         'l4': scores['l4'], 'l5': scores['l5'],
         'price': inputs.get('price'),
         'rsi': inputs.get('rsi'),
         'vol_ratio': inputs.get('vol_ratio'),
+        'obv_slope': inputs.get('obv_slope'),
+        'macd_bullish_recent': inputs.get('macd_bullish_recent'),
+        'weekly_rsi': inputs.get('weekly_rsi'),
         'call_volume': inputs.get('call_volume'),
         'put_volume': inputs.get('put_volume'),
         'atm_iv_30d': inputs.get('atm_iv_30d'),
@@ -620,6 +725,8 @@ def main():
         'xrt_threshold': inputs.get('xrt_threshold'),
         'cohen_buy_7d': inputs.get('cohen_buy_7d'),
         'gill_active_7d': inputs.get('gill_active_7d'),
+        'gill_stockcharts_active_7d': inputs.get('gill_stockcharts_active_7d'),
+        'event_driven_volatility': event_driven,
         'state': state,
     }
 
@@ -634,8 +741,8 @@ def main():
 
     should_push = (not args.no_push) and (args.always_push or scores['total'] >= args.alert_threshold)
     if should_push:
-        title = f"{state_emoji(scores['total'])} GME Kitty {scores['total']}/100 · {state}"
-        ok, msg = push_notification(title, debrief)
+        title = f"{state_emoji(scores['total'])} GME Kitty {scores['total']}/{TOTAL_MAX} · {state}"
+        ok, msg = push_notification(title, debrief, event_driven=event_driven)
         print(f"Push: {'sent' if ok else 'failed'} ({msg})")
     else:
         print("Push skipped.")

@@ -1,8 +1,11 @@
 {
   "gill_last_seen": null,
+  "gill_stockcharts_last_seen": null,
   "cohen_last_seen": null,
   "macro_event": false,
   "macro_event_note": "",
+  "event_driven_volatility": false,
+  "event_description": "",
   "cash_tier": "over50",
   "ocf_positive": true,
   "no_dilution_risk": true,
