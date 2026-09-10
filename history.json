@@ -2383,5 +2383,32 @@
     "gill_stockcharts_active_7d": false,
     "event_driven_volatility": false,
     "state": "Elevated"
+  },
+  {
+    "date": "2026-09-10",
+    "version": "1.1",
+    "total": 38,
+    "l1": 20,
+    "l2": 6,
+    "l3": 5,
+    "l4": 2,
+    "l5": 5,
+    "price": 20.389999389648438,
+    "rsi": 76.88788443811279,
+    "vol_ratio": 1.4865605145638174,
+    "obv_slope": 2600353.570676692,
+    "macd_bullish_recent": false,
+    "weekly_rsi": 43.330175468987974,
+    "call_volume": 192382,
+    "put_volume": 31644,
+    "atm_iv_30d": 0.4726615234375,
+    "call_ratio": 1.7180530779827061,
+    "iv_rank": 82.4531516183986,
+    "xrt_threshold": false,
+    "cohen_buy_7d": true,
+    "gill_active_7d": false,
+    "gill_stockcharts_active_7d": false,
+    "event_driven_volatility": false,
+    "state": "Watching"
   }
 ]
